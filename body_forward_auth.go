@@ -7,7 +7,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/http/httputil"
 )
 
 // Config holds configuration to be passed to the plugin i.e. variables that come from the dockerfile
@@ -29,10 +28,13 @@ type BodyForwardAuth struct {
 	name    string
 }
 
+const isPrintingDebug = true
+
 // New instantiates and returns the required components used to handle an HTTP request
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-	log.Printf("The body_forward_auth plugin was instantiated")
-	log.Printf("The authentication URL is: %s", config.AuthUrl)
+	printfDebug("The body_forward_auth plugin was instantiated")
+	printfDebug("The authentication URL is: %s", config.AuthUrl)
+
 	if len(config.AuthUrl) == 0 {
 		return nil, fmt.Errorf("AuthUrl cannot be empty")
 	}
@@ -51,12 +53,6 @@ func (bfa *BodyForwardAuth) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		log.Printf("Error while reading the body: %e\n", err)
 	}
-	dump, err := httputil.DumpRequest(req, true)
-	log.Printf("The incoming request is: %s", dump)
-	// log.Printf("The request Header is: %s", req.Header)
-	// log.Printf("The request body is: %s", body)
-
-	httpClient := &http.Client{}
 
 	proxyRequest, err := http.NewRequest(req.Method, bfa.authUrl, bytes.NewReader(body))
 	if err != nil {
@@ -65,22 +61,26 @@ func (bfa *BodyForwardAuth) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 	}
 
 	proxyRequest.Header = req.Header
+	httpClient := &http.Client{}
 	response, err := httpClient.Do(proxyRequest)
 	if err != nil {
 		http.Error(rw, err.Error(), http.StatusInternalServerError)
 		log.Printf("An error occured while doing the request: %e", err)
 	}
-	responseBody, _ := io.ReadAll(response.Body)
-	log.Printf("%s", responseBody)
 
 	if response.StatusCode >= 200 && response.StatusCode < 300 {
-		log.Printf("Got Response with status code: %d", response.StatusCode)
+		printfDebug("Got Response with status code: %d", response.StatusCode)
 		req.Body = io.NopCloser(bytes.NewBuffer(body))
 		bfa.next.ServeHTTP(rw, req)
-
 	} else {
 		log.Printf("Got response with status code: %d", response.StatusCode)
 		http.Error(rw, response.Status, response.StatusCode)
 		return
+	}
+}
+
+func printfDebug(format string, v ...any) {
+	if isPrintingDebug {
+		log.Printf(format, v...)
 	}
 }
