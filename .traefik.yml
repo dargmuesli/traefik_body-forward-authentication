@@ -1,9 +1,9 @@
-displayName: Body Forward Auth
+displayName: ForwardAuth with Body
 type: middleware
 
-import: github.com/PatrickMi/body-forward-auth
+import: github.com/dargmuesli/traefik_plugin_forward-auth-with-body
 
-summary: 'Middleware Plugin that sends the request to another server so that it can perform authentication based on the headers and the body'
+summary: 'Middleware plugin that sends the request to another server so that it can perform authentication based on the headers and the body.'
 
 testData:
  AuthUrl : "http://127.0.0.1:3000"

@@ -20,7 +20,7 @@ type Config struct {
 // CreateConfig populates the Config object
 func CreateConfig() *Config {
     return &Config{
-        AuthUrl: "http://127.0.0.1",   // Default authentication URL
+        AuthUrl: "http://127.0.0.1:3000",   // Default authentication URL
         Timeout: 5 * time.Second,      // Default timeout for HTTP client requests
     }
 }

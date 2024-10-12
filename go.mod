@@ -1,3 +1,3 @@
-module github.com/PatrickMi/body-forward-auth
+module github.com/dargmuesli/traefik_plugin_forward-auth-with-body
 
-go 1.20
+go 1.23.2
