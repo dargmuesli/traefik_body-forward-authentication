@@ -1,3 +1,3 @@
-# Body Forward Auth
+# Traefik plugin: ForwardAuth with Body
 
-## Traefik Plugin
+Rewrite of [github.com/PatrickMi/body-forward-auth](https://github.com/PatrickMi/body-forward-auth/).

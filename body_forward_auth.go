@@ -8,8 +8,10 @@ import (
     "net/http"
     "time"
 
-    "github.com/traefik/traefik/v2/pkg/log"
+    "github.com/sirupsen/logrus"
 )
+
+const typeNameForward = "ForwardAuthWithBody"
 
 // Config holds configuration for the plugin
 type Config struct {
@@ -20,7 +22,7 @@ type Config struct {
 // CreateConfig populates the Config object
 func CreateConfig() *Config {
     return &Config{
-        AuthUrl: "http://127.0.0.1",   // Default authentication URL
+        AuthUrl: "http://127.0.0.1:3000",   // Default authentication URL
         Timeout: 5 * time.Second,      // Default timeout for HTTP client requests
     }
 }
@@ -34,7 +36,10 @@ type BodyForwardAuth struct {
 
 // New instantiates and returns the plugin's main handler
 func New(ctx context.Context, next http.Handler, config *Config, name string) (http.Handler, error) {
-    logger := log.FromContext(ctx)
+    logger := logrus.WithFields(logrus.Fields{
+        "middleware": name,
+        "type":       typeNameForward,
+    })
 
     if len(config.AuthUrl) == 0 {
         return nil, fmt.Errorf("AuthUrl cannot be empty")
@@ -52,12 +57,15 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 // ServeHTTP processes the incoming request, forwards it to the auth server, and passes the request to the next handler.
 func (bfa *BodyForwardAuth) ServeHTTP(rw http.ResponseWriter, req *http.Request) {
-    logger := log.FromContext(req.Context())
+    logger := logrus.WithFields(logrus.Fields{
+        "middleware": bfa.name,
+        "type":       typeNameForward,
+    })
     logger.Debugf("ServeHTTP called, forwarding request to auth URL: %s", bfa.authUrl)
 
     body, err := io.ReadAll(req.Body)
     if err != nil {
-        logger.Error("Failed to read request body: ", err)
+        logger.Errorf("Failed to read request body: %v", err)
         http.Error(rw, "failed to read request body", http.StatusInternalServerError)
         return
     }
@@ -66,7 +74,7 @@ func (bfa *BodyForwardAuth) ServeHTTP(rw http.ResponseWriter, req *http.Request)
     // Create proxy request
     proxyRequest, err := http.NewRequest(req.Method, bfa.authUrl, bytes.NewReader(body))
     if err != nil {
-        logger.Error("Failed to create proxy request: ", err)
+        logger.Errorf("Failed to create proxy request: %v", err)
         http.Error(rw, "failed to create proxy request", http.StatusBadGateway)
         return
     }
@@ -80,7 +88,7 @@ func (bfa *BodyForwardAuth) ServeHTTP(rw http.ResponseWriter, req *http.Request)
 
     response, err := client.Do(proxyRequest)
     if err != nil {
-        logger.Error("Request to auth server failed: ", err)
+        logger.Errorf("Request to auth server failed: %v", err)
         http.Error(rw, "auth server request failed", http.StatusInternalServerError)
         return
     }
@@ -93,7 +101,7 @@ func (bfa *BodyForwardAuth) ServeHTTP(rw http.ResponseWriter, req *http.Request)
         req.Body = io.NopCloser(bytes.NewReader(body)) // Reset request body for the next handler
         bfa.next.ServeHTTP(rw, req)
     } else {
-        logger.Error("Authentication failed with status: ", response.StatusCode)
+        logger.Errorf("Authentication failed with status: %d", response.StatusCode)
         http.Error(rw, "auth failed", response.StatusCode)
     }
 }
